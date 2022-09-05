@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<sub-flow name="messengerBotProcessAPIImplementationSubFlow" doc:id="489658a8-6474-43b6-9fda-2fe7225b18fe" >
+		<set-variable value="#[payload]" doc:name="setInputPayload" doc:id="c4dcd13d-da61-41e7-a8d0-ef6c71b78ca6" variableName="inputPayload"/>
+		<choice doc:name="Choice" doc:id="06388da9-c6b0-4dc8-8bbf-5041ad2d9e5c" >
+			<when expression="#[//subscribe&#10;vars.inputPayload.message == '/subscribe']">
+				<http:request method="POST" doc:name="startCommunication" doc:id="a6143510-a51c-48b8-8091-b1281ab49e2f" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
+					<http:body ><![CDATA[#[{
+	identifier: vars.inputPayload.identifier,
+	message: 'Hello, please write one cryptocurrency symbol about which you want to get notifications, and the price you bought it for, and number of cryptocurrencies separated by comma as in the example: BTC, 16000, 1.642657'
+}]]]></http:body>
+				</http:request>
+			</when>
+			<when expression='#[//receive symbol, price, number&#10;import * from dw::core::Strings&#10;var symbol = trim((vars.inputPayload.message splitBy(/[,]/))[0])&#10;var price = trim((vars.inputPayload.message splitBy(/[,]/))[1])&#10;var number = trim((vars.inputPayload.message splitBy(/[,]/))[2])&#10;---&#10;(sizeOf(vars.inputPayload.message splitBy(/[,]/)) == 3) &#10;and isAlpha(symbol) and isNumeric(price) and isNumeric((number as String) replace /[.]/ with "")]'>
+				<try doc:name="Try" doc:id="10496ff3-1de8-4128-a019-53ffd256b030" >
+					<http:request method="GET" doc:name="checkIfCryptocurrencyExists" doc:id="71795432-eb23-4f47-8200-d8e81208de39" config-ref="HTTPS_Request_to_cryptocurrency_system_API_configuration" path="/cryptocurrency">
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	symbol: trim((vars.inputPayload.message splitBy(/[,]/))[0])
+}]]]></http:query-params>
+				</http:request>
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="1223c4a3-5393-4c6f-aefc-ce5bbbbc1952" type="HTTP:BAD_REQUEST">
+							<http:request method="POST" doc:name="cryptocurrencyDoesn'tExistOrNotInFirst1kInCoinMarketCap" doc:id="4cd75788-fe13-4b98-8886-4be0f23bb709" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage" >
+								<http:body ><![CDATA[#[{
+	identifier: vars.inputPayload.identifier,
+	message: "Sorry, but wrote by you cryptocurrency or doesn't exist or isn't in first 1k of coinMarketCap list"
+}]]]></http:body>
+							</http:request>
+						</on-error-propagate>
+					</error-handler>
+				</try>
+				<os:retrieve doc:name="retriveUserCryptocurrencyList" doc:id="1bf3232d-b430-4562-ab0f-c13eac281920" key="#[vars.inputPayload.identifier]" objectStore="objectStoreForCryptocurrencies" target="userCryptocurrencyList">
+					<os:default-value ><![CDATA[#[output application/json
+---
+[]]]]></os:default-value>
+				</os:retrieve>
+				<os:store doc:name="storeUserCryptocurrencies" doc:id="c4a46ae4-b403-4515-8ea8-ba037f4a1855" key="#[vars.inputPayload.identifier]" objectStore="objectStoreForCryptocurrencies">
+					<os:value><![CDATA[#[import * from dw::core::Strings
+var symbol = trim((vars.inputPayload.message splitBy(/[,]/))[0])
+var price = trim((vars.inputPayload.message splitBy(/[,]/))[1])
+var number = trim((vars.inputPayload.message splitBy(/[,]/))[2])
+output application/json
+---
+vars.userCryptocurrencyList as Array +
+	{
+		'symbol': upper(symbol),
+	    'userPrice': price ++ "\$",
+	    'number': number
+	}]]]></os:value>
+				</os:store>
+				<http:request method="POST" doc:name="orAddOneMoreCryptocurrencyOrSetNotificationTime" doc:id="0cccca5e-d204-441f-b58a-05d7cf734c57" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
+					<http:body><![CDATA[#[{
+	identifier: vars.inputPayload.identifier,
+	message: 'Would you like to add one more cryptocurrency or set notification time? (You can add more cryptocurrencies later, just press /changecryptocurrency in menu)',
+	buttons: 'add',
+	keys: ['Add one more cryptocurrency', 'Set notification time']
+}]]]></http:body>
+				</http:request>
+			</when>
+			<when expression="#[//Add one more cryptocurrency&#10;vars.inputPayload.message == 'Add one more cryptocurrency']">
+				<http:request method="POST" doc:name="pleaseWriteCryptocurrencySymbolAnd...AndDeleteKeyboard" doc:id="9f69e93a-ef6c-4929-88e8-78bd945678d3" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
+					<http:body><![CDATA[#[{
+	identifier: vars.inputPayload.identifier,
+	message: 'please write one cryptocurrency symbol about which you want to get notifications, and the price you bought it for, and number of cryptocurrencies separated by comma as in the example: BTC, 16000, 1.642657',
+	buttons: 'delete'
+}]]]></http:body>
+				</http:request>
+			</when>
+			<when expression="#[//Set notification time&#10;vars.inputPayload.message == 'Set notification time']">
+				<http:request method="POST" doc:name="toDo" doc:id="e4311710-e132-466e-b4a4-91e2d88c4a02" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
+					<http:body><![CDATA[#[{
+	identifier: vars.inputPayload.identifier,
+	message: 'please write one cryptocurrency symbol about which you want to get notifications, and the price you bought it for, and number of cryptocurrencies separated by comma as in the example: BTC, 16000, 1.642657',
+	buttons: 'delete'
+}]]]></http:body>
+				</http:request>
+			</when>
+		</choice>
+	</sub-flow>
+</mule>

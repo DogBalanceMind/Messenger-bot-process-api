@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation=" http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+    <http:listener-config name="messenger-bot-process-api-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="messenger-bot-process-api-config" api="resource::a33f23d5-1d66-4edc-937f-b275ecc37a3a:messanger-bot-process-api:1.0.3:raml:zip:messenger-bot-process-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <import doc:name="common-utils-global.xml" doc:id="a7ff93c2-7e4b-4328-98ba-1385c46609c1" file="common-utils-global.xml" />
+    <import doc:name="common-utils-error-handler.xml" doc:id="dd037d66-e0e5-4746-bbca-a04b8028d1a9" file="common-utils-error-handler.xml" />
+    <import doc:name="common-utils.xml" doc:id="c1dee0d9-9147-4aaf-ac57-4ac2b527ee81" file="common-utils.xml" />
+    <import doc:name="common-utils-logging.xml" doc:id="63f2f6d9-026b-4e91-95af-1237cf83cd20" file="common-utils-logging.xml" />
+	<http:request-config name="HTTPS_Request_configuration_to_telegram_system_API" doc:name="HTTP Request configuration" doc:id="029f2660-7fc0-4f07-94a9-696f2713291b" basePath="${telegramSystemAPI.basePath}" >
+		<http:request-connection protocol="HTTPS" host="${telegramSystemAPI.host}" port="${telegramSystemAPI.port}" />
+	</http:request-config>
+	<http:request-config name="HTTPS_Request_to_cryptocurrency_system_API_configuration" doc:name="HTTP Request configuration" doc:id="f1c1a5da-8051-4df3-9395-4145bb555add" basePath="${cryptocurrencySystemAPI.basePath}" >
+		<http:request-connection protocol="HTTPS" host="${cryptocurrencySystemAPI.host}" port="${cryptocurrencySystemAPI.port}" />
+	</http:request-config>
+	<os:object-store name="objectStoreForCryptocurrencies" doc:name="Object store" doc:id="41508082-5deb-4802-97c3-0776bfb47450" expirationInterval="60" />
+</mule>

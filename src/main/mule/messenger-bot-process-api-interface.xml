@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd ">
+    <flow name="messenger-bot-process-api-main">
+        <http:listener config-ref="messenger-bot-process-api-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <flow-ref doc:name="logInfoSubFlow" doc:id="605e42d9-ecf2-4824-b751-bbb76cc07d8b" name="logInfoSubFlow" />
+        <flow-ref doc:name="initialSubFlow" doc:id="f84a4362-f4c3-40d2-a383-f0b019a769f5" name="initialSubFlow" />
+        <apikit:router config-ref="messenger-bot-process-api-config" />
+        <flow-ref doc:name="logInfoSubFlow" doc:id="e1bff0ff-c05f-49de-8ae8-ba19aa50a21b" name="logInfoSubFlow" />
+		<error-handler ref="globalErrorHandler" />
+    </flow>
+    <flow name="messenger-bot-process-api-console">
+        <http:listener config-ref="messenger-bot-process-api-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="messenger-bot-process-api-config" />
+		<error-handler ref="globalErrorHandler" />
+    </flow>
+    <flow name="post:\webhook:application\json:messenger-bot-process-api-config">
+        <ee:transform doc:name="setFlowNameVar" doc:id="eef4552e-d610-4844-8ff0-b85ec38d5d0b">
+            <ee:message />
+            <ee:variables>
+                <ee:set-variable resource="dwl/flowNameVar.dwl" variableName="flowName" />
+            </ee:variables>
+        </ee:transform>
+        <flow-ref doc:name="Flow Reference" doc:id="22bb1956-50c2-4ebf-8959-cee8eeb701d1" name="messengerBotProcessAPIImplementationSubFlow"/>
+    </flow>
+</mule>
