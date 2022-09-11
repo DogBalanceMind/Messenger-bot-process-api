@@ -37,7 +37,7 @@ http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/cu
 						</on-error-propagate>
 					</error-handler>
 				</try>
-				<os:retrieve doc:name="retriveUserCryptocurrencyList" doc:id="1bf3232d-b430-4562-ab0f-c13eac281920" key="#[vars.inputPayload.identifier]" objectStore="objectStoreForCryptocurrencies" target="userCryptocurrencyList">
+				<os:retrieve doc:name="setUserCryptocurrencyListVar" doc:id="1bf3232d-b430-4562-ab0f-c13eac281920" key="#[vars.inputPayload.identifier]" objectStore="objectStoreForCryptocurrencies" target="userCryptocurrencyList">
 					<os:default-value ><![CDATA[#[output application/json
 ---
 []]]]></os:default-value>
@@ -75,13 +75,25 @@ vars.userCryptocurrencyList as Array +
 				</http:request>
 			</when>
 			<when expression="#[//Set notification time&#10;vars.inputPayload.message == 'Set notification time']">
-				<http:request method="POST" doc:name="toDo" doc:id="e4311710-e132-466e-b4a4-91e2d88c4a02" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
+				<http:request method="POST" doc:name="askAboutDaysForNotificationAndDeleteKeyboard" doc:id="e4311710-e132-466e-b4a4-91e2d88c4a02" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
 					<http:body><![CDATA[#[{
 	identifier: vars.inputPayload.identifier,
-	message: 'please write one cryptocurrency symbol about which you want to get notifications, and the price you bought it for, and number of cryptocurrencies separated by comma as in the example: BTC, 16000, 1.642657',
-	buttons: 'delete'
+	message: 'please choose days when you want to get notification. You can one or more days. After you did it, press "Set time for notifications"',
+	buttons: 'add',
+	keys: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Set time for notifications']
 }]]]></http:body>
 				</http:request>
+			</when>
+			<when expression="#[//set day&#10;['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] contains vars.inputPayload.message]">
+				<os:retrieve doc:name="setUserDaysVar" doc:id="c977129f-a74f-4baf-9cff-1af96ddcff85" key="#[vars.inputPayload.identifier]" objectStore="objectStoreForDays" target="userDays">
+					<os:default-value ><![CDATA[#[[]]]]></os:default-value>
+				</os:retrieve>
+				<os:store doc:name="storeUserDaysForNotification" doc:id="c62dda17-5cb3-448b-8d18-c0ea81c4328d" key="#[vars.inputPayload.identifier]">
+					<os:value ><![CDATA[#[(vars.userDays as Array + vars.inputPayload.message) distinctBy ((item, index) -> item)]]]></os:value>
+				</os:store>
+			</when>
+			<when expression='#[//set time&#10;["00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"]]'>
+				<os:contains doc:name="Contains" doc:id="2c23ac51-f760-4537-9979-efa175eba56d" />
 			</when>
 		</choice>
 	</sub-flow>

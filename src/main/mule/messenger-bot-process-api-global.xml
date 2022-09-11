@@ -15,5 +15,6 @@ http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/cu
 	<http:request-config name="HTTPS_Request_to_cryptocurrency_system_API_configuration" doc:name="HTTP Request configuration" doc:id="f1c1a5da-8051-4df3-9395-4145bb555add" basePath="${cryptocurrencySystemAPI.basePath}" >
 		<http:request-connection protocol="HTTPS" host="${cryptocurrencySystemAPI.host}" port="${cryptocurrencySystemAPI.port}" />
 	</http:request-config>
-	<os:object-store name="objectStoreForCryptocurrencies" doc:name="Object store" doc:id="41508082-5deb-4802-97c3-0776bfb47450" expirationInterval="60" />
+	<os:object-store name="objectStoreForCryptocurrencies" doc:name="Object store" doc:id="41508082-5deb-4802-97c3-0776bfb47450" expirationIntervalUnit="HOURS"/>
+	<os:object-store name="objectStoreForDays" doc:name="Object store" doc:id="226e63f8-706e-47f7-80c0-efd0807cba58" expirationIntervalUnit="HOURS" />
 </mule>
