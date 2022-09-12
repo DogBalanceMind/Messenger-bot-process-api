@@ -75,12 +75,13 @@ vars.userCryptocurrencyList as Array +
 				</http:request>
 			</when>
 			<when expression="#[//Set notification time&#10;vars.inputPayload.message == 'Set notification time']">
-				<http:request method="POST" doc:name="askAboutDaysForNotificationAndDeleteKeyboard" doc:id="e4311710-e132-466e-b4a4-91e2d88c4a02" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
+				<http:request method="POST" doc:name="askUserChooseDays" doc:id="e4311710-e132-466e-b4a4-91e2d88c4a02" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
 					<http:body><![CDATA[#[{
 	identifier: vars.inputPayload.identifier,
-	message: 'please choose days when you want to get notification. You can one or more days. After you did it, press "Set time for notifications"',
+	message: 'please choose days when you want to get notification. You can choose one or more days. After you did it, press "Set hours for notifications"',
 	buttons: 'add',
-	keys: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Set time for notifications']
+	keys: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Set hours for notifications'],
+	keysInRow: 2
 }]]]></http:body>
 				</http:request>
 			</when>
@@ -89,11 +90,52 @@ vars.userCryptocurrencyList as Array +
 					<os:default-value ><![CDATA[#[[]]]]></os:default-value>
 				</os:retrieve>
 				<os:store doc:name="storeUserDaysForNotification" doc:id="c62dda17-5cb3-448b-8d18-c0ea81c4328d" key="#[vars.inputPayload.identifier]">
-					<os:value ><![CDATA[#[(vars.userDays as Array + vars.inputPayload.message) distinctBy ((item, index) -> item)]]]></os:value>
+					<os:value><![CDATA[#[(vars.userDays as Array + vars.inputPayload.message) distinctBy ((item, index) -> item)]]]></os:value>
 				</os:store>
 			</when>
-			<when expression='#[//set time&#10;["00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"]]'>
-				<os:contains doc:name="Contains" doc:id="2c23ac51-f760-4537-9979-efa175eba56d" />
+			<when expression="#[//Set hours for notifications&#10;vars.inputPayload.message == 'Set hours for notifications']">
+				<http:request method="POST" doc:name="askUserChooseHours" doc:id="3c230df3-5824-4532-a00b-5109e93db016" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
+					<http:body><![CDATA[#[{
+	identifier: vars.inputPayload.identifier,
+	message: 'please choose time during day when you want to get notification. You can choose one or more hours. After you did it, press "Check time for notification"',
+	buttons: 'add',
+	keys: ["00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00", "08:00", "09:00",
+ "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00",
+ "19:00", "20:00", "21:00", "22:00", "23:00", "Check time for notification"],
+	keysInRow: 4
+}]]]></http:body>
+				</http:request>
+			</when>
+			<when expression='#[//set hours&#10;["00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00", "08:00", "09:00",&#10; "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00",&#10; "19:00", "20:00", "21:00", "22:00", "23:00"] contains vars.inputPayload.message]'>
+				<os:contains doc:name="setUserHoursVar" doc:id="2c23ac51-f760-4537-9979-efa175eba56d" key="#[vars.inputPayload.identifier]" target="userHours" objectStore="objectStoreForHours"/>
+				<os:store doc:name="storeUserHoursForNotification" doc:id="b541fde8-093a-4b65-9114-dbdb5d0e359c" key="#[vars.inputPayload.identifier]" objectStore="objectStoreForHours">
+					<os:value ><![CDATA[#[(vars.userHours as Array + vars.inputPayload.message) distinctBy ((item, index) -> item)]]]></os:value>
+				</os:store>
+			</when>
+			<when expression="#[//Check time for notification&#10;vars.inputPayload.message == 'Check time for notification']">
+				<os:retrieve doc:name="setUserDaysForNotificationVar" doc:id="a04d5a79-47d2-4949-94df-df01a0c67592" key="#[vars.inputPayload.identifier]" objectStore="objectStoreForDays" target="userDaysForNotification">
+					<os:default-value ><![CDATA[#[[]]]]></os:default-value>
+				</os:retrieve>
+				<os:retrieve doc:name="setUserHoursForNotificationVar" doc:id="b1ecbd7a-ed04-48f2-9940-68a7ed180498" key="#[vars.inputPayload.identifier]" objectStore="objectStoreForHours" target="userHoursForNotification">
+					<os:default-value ><![CDATA[#[[]]]]></os:default-value>
+				</os:retrieve>
+				<ee:transform doc:name="prepareUserTimeAndCoercingToString" doc:id="8ef7a389-ce04-4d6b-9e01-6180923be60d">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<http:request method="POST" doc:name="askUserToCheckTime" doc:id="75b432e8-b6ef-4dda-a754-a33ca07f4454" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
+					<http:body><![CDATA[#[{
+	identifier: vars.inputPayload.identifier,
+	message: 'Please check the time when you want to get notifications',
+	buttons: 'add',
+	keys: ['This time is correct', 'I want to change time']
+}]]]></http:body>
+				</http:request>
 			</when>
 		</choice>
 	</sub-flow>
