@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
 	<sub-flow name="messengerBotProcessAPIImplementationSubFlow" doc:id="489658a8-6474-43b6-9fda-2fe7225b18fe" >
 		<set-variable value="#[payload]" doc:name="setInputPayload" doc:id="c4dcd13d-da61-41e7-a8d0-ef6c71b78ca6" variableName="inputPayload"/>
 		<choice doc:name="Choice" doc:id="06388da9-c6b0-4dc8-8bbf-5041ad2d9e5c" >
@@ -121,22 +122,64 @@ vars.userCryptocurrencyList as Array +
 				</os:retrieve>
 				<ee:transform doc:name="prepareUserTimeAndCoercingToString" doc:id="8ef7a389-ce04-4d6b-9e01-6180923be60d">
 					<ee:message>
-						<ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-{
-}]]></ee:set-payload>
+						<ee:set-payload><![CDATA['Please check the time when you want to get notifications'
+	++ "You will get notification every: " ++ (payload.days joinBy ", ")
+	 ++ " at " ++ (payload.hours joinBy ", ")]]></ee:set-payload>
 					</ee:message>
 				</ee:transform>
 				<http:request method="POST" doc:name="askUserToCheckTime" doc:id="75b432e8-b6ef-4dda-a754-a33ca07f4454" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage">
 					<http:body><![CDATA[#[{
 	identifier: vars.inputPayload.identifier,
-	message: 'Please check the time when you want to get notifications',
+	message: payload,
 	buttons: 'add',
 	keys: ['This time is correct', 'I want to change time']
 }]]]></http:body>
 				</http:request>
 			</when>
+			<when expression="#[//This time is correct&#10;vars.inputPayload.message == 'This time is correct']">
+				<os:retrieve doc:name="setUserCrytpocurrencyListVar" doc:id="17494e0e-62aa-46de-a9fb-97f2488ff47c" key="#[vars.inputPayload.identifier]" target="userCrytpocurrencyList" objectStore="objectStoreForCryptocurrencies">
+					<os:default-value ><![CDATA[#[[]]]]></os:default-value>
+				</os:retrieve>
+				<os:retrieve doc:name="setUserDaysListVar" doc:id="a46aa053-7394-4e88-b7b7-cea0ec9b0add" key="#[vars.inputPayload.identifier]" target="UserDaysList" objectStore="objectStoreForDays">
+					<os:default-value ><![CDATA[#[[]]]]></os:default-value>
+				</os:retrieve>
+				<os:retrieve doc:name="setUserHoursListVar" doc:id="4d841a40-7e8b-46d3-8d46-d2b6a115a59e" key="#[vars.inputPayload.identifier]" objectStore="objectStoreForHours" target="userHoursList">
+					<os:default-value ><![CDATA[#[[]]]]></os:default-value>
+				</os:retrieve>
+				<validation:is-true doc:name="ifAllnecessaryUserDataIsPresent" doc:id="6de4c3b2-25b0-4d1c-9d83-e3f41584a878" expression="#[!isEmpty(vars.userCrytpocurrencyList) and !isEmpty(vars.UserDaysList) and !isEmpty(vars.userHoursList)]" message="There last too much time after your last activity, please try to subscribe one more time"/>
+				<http:request method="POST" doc:name="subscribeRequestToNotificationAPI" doc:id="40126b97-8f93-4234-bc0e-950550417ff5" config-ref="HTTP_Request_configuration_to_notification_process_API" path="/subscribe">
+					<http:body><![CDATA[#[output application/json
+var messenger = vars.inputPayload.messenger
+---
+{
+  subscribedIn:{
+    '$(messenger)': vars.inputPayload.identifier
+  },
+  notifyAt:{
+    period: "d",
+    inDays: vars.UserDaysList,
+    atTime: vars.userHoursList
+  },
+  cryptocurrencies: vars.userCrytpocurrencyList
+}]]]></http:body>
+				</http:request>
+				<http:request method="POST" doc:name="notifyThatUserIsSubscribedAndDeleteKeyboard" doc:id="057fff58-fd6c-4d57-9be3-6e703d079ec8" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage" >
+					<http:body ><![CDATA[#[{
+	identifier: vars.inputPayload.identifier,
+	message: 'You are subscribed now',
+	buttons: 'delete'
+}]]]></http:body>
+				</http:request>
+			</when>
+			<otherwise >
+				<http:request method="POST" doc:name="askUserToFollowInstructions" doc:id="692b04a2-1583-4fc7-aa15-89fcb4caa66e" config-ref="HTTPS_Request_configuration_to_telegram_system_API" path="/sendMessage" >
+					<http:body ><![CDATA[#[{
+	identifier: vars.inputPayload.identifier,
+	message: 'Please, follow the instructions'
+}]]]></http:body>
+				</http:request>
+			</otherwise>
 		</choice>
+		<set-payload value="#[output application/json&#10;---&#10;{&#10;	message: 'message was processed successfully'&#10;}]" doc:name="setUsualPayload" doc:id="edd310ff-882c-4358-af92-da07c2cb2157" />
 	</sub-flow>
 </mule>

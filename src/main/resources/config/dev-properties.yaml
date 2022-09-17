@@ -17,3 +17,8 @@ cryptocurrencySystemAPI:
   host: "localhost"
   port: "8082"
   basePath: "/cryptocurrency-sa"
+  
+notificationProcessAPI:
+  host: "localhost"
+  port: "8083"
+  basePath: "/notification-pa"
